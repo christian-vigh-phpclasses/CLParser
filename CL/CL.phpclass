@@ -29,6 +29,11 @@
    [Version : 2.0.4]	[Date : 2016/01/31]		[Author : CV]
 	. The $command parameter of the class constructor was not prepended to the argument list
 	  if a string was specified.
+
+   [Version : 2.0.5]	[Date : 2016/08/28]		[Author : CV]
+	. Changed the __display_variables() method to include global variables.
+	. Changed the __read_from_stdin() method, which was unable to read data from piped standard
+	  input.
  
  ***************************************************************************************************/
 namespace 	CL ;
@@ -36,11 +41,20 @@ namespace 	CL ;
 require_utility ( 'String.phpclass' ) ;
 require_utility ( 'Path.phpclass' ) ;
 require_utility ( 'Convert.phpclass' ) ;
+require_utility ( 'AsciiReport.phpclass' ) ;
+require_utility ( 'Console.phpclass' ) ;
+
+
+require_once ( dirname ( __FILE__ ) . '/CLAbstractParameter.phpclass' ) ;
+require_once ( dirname ( __FILE__ ) . '/Types/Numeric.phpclass' ) ;
+
 
 use	CL\Utilities\String ;
 use	CL\Utilities\Path ;
 use	CL\CLException ;
 use	CL\Utilities\Convert ;
+use	CL\Utilities\Console ;
+use	CL\Utilities\AsciiReport ;
 
 /*==================================================================================================
 
@@ -140,12 +154,6 @@ use	CL\Utilities\Convert ;
 	--functions (or --function, --funcs, --func) :
 		Lists all the defined functions.
 
-	--stdfunctions (or --stdfunction, --stdfuncs, --stdfunc) :
-		Lists the standard functions.
-
-	--userfunctions (or --userfunction, --userfuncs, --userfunc) :
-		Lists the user-defined functions.
-
 	--variables (or --variable, --vars, --var) :
 		Lists the program variables.
 
@@ -190,9 +198,6 @@ use	CL\Utilities\Convert ;
 
 	--include_tree (or --includetree, --inc_tree, --inctree) :
 		Displays the include tree.
-
-	--autoloaded_classes ( or --autoloaded, --ac ) :
-		Shows the classes that have been autoloaded.
 
 	All options are immediately processed and cause the program to stop, except the
 	following one :
@@ -455,26 +460,6 @@ class CL	 implements  \ArrayAccess, \Countable, \Iterator
 		   	'exit'		=>  'true',
 		   	'extra'		=>  0
 		    ),
-		// --stdfunctions :
-		//	Lists the standard functions.
-		array
-		   (
-		   	'names'		=>  array ( '--stdfunctions', '--stdfuncs' ),
-		   	'help'		=>  'Lists the available standard functions',
-		   	'callback'	=>  '__display_functions',
-		   	'exit'		=>  'true',
-		   	'extra'		=>  1
-		    ),
-		// --usrfunctions :
-		//	Lists the defined functions.
-		array
-		   (
-		   	'names'		=>  array ( '--usrfunctions', '--usrfuncs' ),
-		   	'help'		=>  'Lists the available user-defined functions',
-		   	'callback'	=>  '__display_functions',
-		   	'exit'		=>  'true',
-		   	'extra'		=>  2
-		    ),
 		// --variables :
 		//	Displays the list of defined variables.
 		array
@@ -504,26 +489,6 @@ class CL	 implements  \ArrayAccess, \Countable, \Iterator
 		   	'callback'	=>  '__display_interfaces',
 		   	'exit'		=>  true,
 		   	'extra'		=>  0
-		    ),
-		// --stdinterfaces :
-		//	Displays the list of PHP-defined interfaces.
-		array
-		   (
-		   	'names'		=>  array ( '--stdinterfaces' ),
-		   	'help'		=>  'Displays the list of PHP-defined interfaces',
-		   	'callback'	=>  '__display_interfaces',
-		   	'exit'		=>  true,
-		   	'extra'		=>  1
-		    ),
-		// --usrinterfaces :
-		//	Displays the list of user-defined interfaces.
-		array
-		   (
-		   	'names'		=>  array ( '--usrinterfaces' ),
-		   	'help'		=>  'Displays the list of user-defined interfaces',
-		   	'callback'	=>  '__display_interfaces',
-		   	'exit'		=>  true,
-		   	'extra'		=>  2
 		    ),
 		// --dump variable :
 		//	Dumps a variable contents.
@@ -603,15 +568,6 @@ class CL	 implements  \ArrayAccess, \Countable, \Iterator
 		   	'names'		=>  array ( '--include_tree', '--inctree' ),
 			'help'		=>  'Displays the include tree for the running executable',
 			'callback'	=>  '__display_complete_include_tree',
-			'exit'		=>  true
-		    ),
-		// --autoloaded_classes :
-		//	Displays the list of autoloaded classes and their corresponding include file.
-		array
-		   (
-		   	'names'		=>  array ( '--autoloaded_classes', '--autoloaded', '--ac' ),
-			'help'		=>  'Displays the list of autoloaded classes and their corresponding include file',
-			'callback'	=>  '__display_autoloaded_classes',
 			'exit'		=>  true
 		    ),
 		// --expressions :
@@ -1148,7 +1104,7 @@ class CL	 implements  \ArrayAccess, \Countable, \Iterator
 	//	Displays the defined variables.
 	private function  __display_variables ( $param, $option )
 	   {
-	   	$defined_variables 	=  array_keys ( get_defined_vars ( ) ) ;
+	   	$defined_variables 	=  array_merge ( array_keys ( $GLOBALS ), array_keys ( get_defined_vars ( ) ) ) ;
 
 		$this -> __list ( 'Defined variables', $defined_variables ) ;
 	    }
@@ -1292,17 +1248,6 @@ class CL	 implements  \ArrayAccess, \Countable, \Iterator
 		$file  =  $trace [ count ( $trace ) - 1 ] [ 'file' ] ;
 		output ( Path::ToUnix ( $file, true ) . " :" ) ;
 		$this -> __display_include_tree ( $file, 1 ) ;
-	    }
-
-
-	// __display_autoloaded_classes :
-	//	Displays the autoloaded classes.
-	private function  __display_autoloaded_classes ( $params )
-	   {
-	   	global 		$Autoloader ;
-
-	   	foreach  ( $Autoloader -> AutoloadedClasses as  $key => $value )
-	   		output ( "$key -> $value" ) ;
 	    }
 
 
@@ -1805,10 +1750,16 @@ class CL	 implements  \ArrayAccess, \Countable, \Iterator
 	//	Reads argument data from stdin
 	private function  __read_from_stdin ( )
 	   {
-	   	global		$Runtime ;
-
-
+		$stat		=  fstat ( STDIN ) ;
 	   	$contents 	=  "" ;
+
+		if  ( ! ( $stat [ 'mode' ]  &  S_IFCHR ) )
+		   {
+			while  ( ! feof ( STDIN ) )
+				$contents	.=  fread ( STDIN, 8192 ) ;
+
+			return ( $contents ) ;
+		    }
 
 	   	if  ( IS_STANDALONE )
 	   		$eof = "^Z" ;

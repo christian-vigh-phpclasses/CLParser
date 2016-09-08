@@ -25,6 +25,34 @@ require_once ( "$__CLROOT__/CLAbstractParameter.phpclass" ) ;
 require_once ( "$__CLROOT__/CLValidators.phpclass" ) ;
 
 
+// Check if we are run from a web server or from the command line
+if  ( php_sapi_name ( )  ==  'cli' )
+   {
+ 	define ( 'THRAK_STANDALONE'	, 1 ) ;
+ 	define ( 'IS_STANDALONE'	, 1 ) ;
+	define ( 'IS_CLI'		, 1 ) ;
+    }
+else
+   {
+ 	define ( 'THRAK_STANDALONE'	, 0 ) ;
+ 	define ( 'IS_STANDALONE'	, 0 ) ;
+	define ( 'IS_CLI'		, 0 ) ;
+    }
+
+// Determine if we run under Windows or Unix
+if  ( ! strncasecmp ( php_uname ( 's' ), 'windows', 7 ) )
+    {
+ 	define ( 'IS_WINDOWS'		,  1 ) ;
+ 	define ( 'IS_UNIX'		,  0 ) ;
+     }
+ else
+    {
+ 	define ( 'IS_WINDOWS'		,  0 ) ;
+ 	define ( 'IS_UNIX'		,  1 ) ;
+     }
+
+
+
 if  ( ! function_exists ( 'warning' ) )
    {
 	function  warning ( $message )

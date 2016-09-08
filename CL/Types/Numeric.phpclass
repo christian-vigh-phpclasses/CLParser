@@ -42,10 +42,12 @@ namespace  	CL ;
 require_utility ( 'Debug.phpclass' ) ;
 require_utility ( 'String.phpclass' ) ;
 require_utility ( 'IniFile.phpclass' ) ;
+require_utility ( 'AsciiReport.phpclass' ) ;
 
 use	CL\Utilities\Debug ;
 use	CL\Utilities\String ;
 use	CL\Utilities\IniFile ;
+use	CL\Utilities\AsciiReport ;
 
 
 /*==================================================================================================
@@ -169,7 +171,7 @@ abstract class  CLNumericParameter  extends  CLAbstractParameter
 	   	$this -> ReturnValueHelp	=  "Returns the specified value, after checking that it is conform to its type constraints, and after processing any needed adjustments." ;
 
 		parent::__construct ( $parent, $tags, $valuetext, $this -> NumericDefinitions ) ;
-		self::LoadAuthorizedFunctions ( NUMERIC_FUNCTIONS_FILE ) ;
+		self::LoadAuthorizedFunctions ( ) ;
 	    }
 
 
@@ -842,7 +844,7 @@ abstract class  CLNumericParameter  extends  CLAbstractParameter
 	public static function  ShowAuthorizedFunctions ( )
 	   {
 	   	if  ( ! self::$AuthorizedFunctions )
-			self::LoadAuthorizedFunctions ( NUMERIC_FUNCTIONS_FILE ) ;
+			self::LoadAuthorizedFunctions ( ) ;
 
 		$functions 		=  self::$AuthorizedFunctions ;
 		$function_data 		=  array ( ) ;
